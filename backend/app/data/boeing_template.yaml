@@ -1,0 +1,37 @@
+theme: boeing
+version: 1
+metadata:
+  title: "737-800 Normal Checklist"
+  author: "Boeing Template"
+  revision: "1.0"
+  created_at: "2024-01-01T12:00:00Z"
+  updated_at: "2024-01-01T12:00:00Z"
+sections:
+  - id: preflight
+    title: "PREFLIGHT"
+    items:
+      - id: oxygen
+        left_text: "OXYGEN"
+        right_text: "TESTED, 100%"
+      - id: flightdeck
+        left_text: "FLIGHT DECK DOOR"
+        right_text: "CHECKED"
+  - id: before_start
+    title: "BEFORE START"
+    items:
+      - id: logbook
+        left_text: "LOGBOOK"
+        right_text: "ONBOARD"
+      - id: fuel
+        left_text: "FUEL"
+        right_text: "SET"
+  - id: after_start
+    title: "AFTER START"
+    items:
+      - id: generators
+        left_text: "GENERATORS"
+        right_text: "ON"
+      - id: probes
+        left_text: "PROBES"
+        right_text: "ON"
+

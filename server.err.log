@@ -1,0 +1,37 @@
+C:\Users\Mna\Documents\PythonCursBalls\backend\app\extensions.py:2: UserWarning: Flask-SQLAlchemy integration requires marshmallow-sqlalchemy to be installed.
+  from flask_marshmallow import Marshmallow
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://10.0.0.10:5000
+Press CTRL+C to quit
+ * Restarting with stat
+C:\Users\Mna\Documents\PythonCursBalls\backend\app\extensions.py:2: UserWarning: Flask-SQLAlchemy integration requires marshmallow-sqlalchemy to be installed.
+  from flask_marshmallow import Marshmallow
+ * Debugger is active!
+ * Debugger PIN: 400-721-078
+ * Detected change in 'C:\\Users\\Mna\\Documents\\PythonCursBalls\\backend\\wsgi.py', reloading
+ * Restarting with stat
+C:\Users\Mna\Documents\PythonCursBalls\backend\app\extensions.py:2: UserWarning: Flask-SQLAlchemy integration requires marshmallow-sqlalchemy to be installed.
+  from flask_marshmallow import Marshmallow
+ * Debugger is active!
+ * Debugger PIN: 400-721-078
+ * Detected change in 'C:\\Users\\Mna\\Documents\\PythonCursBalls\\backend\\app\\models.py', reloading
+ * Restarting with stat
+C:\Users\Mna\Documents\PythonCursBalls\backend\app\extensions.py:2: UserWarning: Flask-SQLAlchemy integration requires marshmallow-sqlalchemy to be installed.
+  from flask_marshmallow import Marshmallow
+ * Debugger is active!
+ * Debugger PIN: 400-721-078
+ * Detected change in 'C:\\Users\\Mna\\Documents\\PythonCursBalls\\backend\\app\\__init__.py', reloading
+ * Restarting with stat
+C:\Users\Mna\Documents\PythonCursBalls\backend\app\extensions.py:2: UserWarning: Flask-SQLAlchemy integration requires marshmallow-sqlalchemy to be installed.
+  from flask_marshmallow import Marshmallow
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\Users\Mna\Documents\PythonCursBalls\backend\wsgi.py", line 13, in <module>
+    app = create_app()
+  File "C:\Users\Mna\Documents\PythonCursBalls\backend\app\__init__.py", line 29, in create_app
+    _ensure_database_shape()
+    ^^^^^^^^^^^^^^^^^^^^^^
+NameError: name '_ensure_database_shape' is not defined

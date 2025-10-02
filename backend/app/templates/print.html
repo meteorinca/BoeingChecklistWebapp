@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>{{ checklist.title }} - Print</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
+    <style>
+        body { background: var(--panel); color: var(--text); font-family: var(--font-base); }
+        .app-shell, .app-header, .editor-grid, .controls, .sidebar { display: none !important; }
+        .print-container { column-count: 2; column-gap: 24px; padding: 24px; }
+        .print-section { break-inside: avoid; margin-bottom: 16px; border-top: 4px solid var(--blue); padding-top: 4px; }
+        .print-section-title { font-weight: 700; font-size: 1rem; letter-spacing: var(--section-title-letter-spacing); margin-bottom: 8px; font-family: var(--font-heading); }
+        .print-item { display: flex; justify-content: space-between; font-size: 0.9rem; padding: 4px 6px; border-bottom: 1px dashed var(--border); border-radius: 4px; background: var(--item-bg); }
+        .print-item:nth-child(even) { background: var(--item-even-bg); }
+        .print-item .label { font-weight: 600; }
+        @page { size: A4 portrait; margin: 12mm; }
+    </style>
+</head>
+<body data-theme="{{ checklist.theme or "boeing" }}">
+    <main class="print-container">
+        {% for section in checklist.sections %}
+        <section class="print-section">
+            <header class="print-section-title">{{ section.title }}</header>
+            {% for item in section.items %}
+            <div class="print-item">
+                <span class="label">{{ item.left_text }}</span>
+                <span class="value">{{ item.right_text or '' }}</span>
+            </div>
+            {% endfor %}
+        </section>
+        {% endfor %}
+    </main>
+    <script>window.print();</script>
+</body>
+</html>
+
+

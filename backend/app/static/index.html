@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Boeing Checklist Maker</title>
+    <link rel="stylesheet" href="/static/css/styles.css" />
+</head>
+<body>
+    <div class="app-shell">
+        <header class="app-header">
+            <h1>Boeing Checklist Maker</h1>
+            <div class="header-actions">
+                <button id="createChecklist">New Checklist</button>
+                <button id="importChecklist">Import File</button>
+                <button id="pasteChecklist">Paste YAML/Markdown</button>
+                <input id="importFile" type="file" accept=".yaml,.yml,.md,.markdown" hidden />
+                <button id="exportChecklist" disabled>Export YAML</button>
+                <button id="printChecklist" disabled>Print</button>
+                <button id="undoAction" disabled>Undo</button>
+                <button id="redoAction" disabled>Redo</button>
+                <label class="theme-select">
+                    Theme
+                    <select id="themeSelect"></select>
+                </label>
+                <span id="saveStatus" class="save-status">Idle</span>
+            </div>
+        </header>
+        <main class="editor-grid">
+            <aside class="sidebar">
+                <div class="sidebar-header">
+                    <h2>Checklists</h2>
+                    <p class="sidebar-hint">Select a checklist to edit or create a new one.</p>
+                </div>
+                <ul id="checklistList" class="checklist-list"></ul>
+            </aside>
+            <section class="editor" id="editor"></section>
+        </main>
+    </div>
+
+    <div class="modal" id="importModal" hidden>
+        <div class="modal-content">
+            <h2>Import Checklist</h2>
+            <textarea id="importText" rows="12" placeholder="Paste YAML or Markdown here"></textarea>
+            <div class="modal-actions">
+                <button id="confirmImport">Import</button>
+                <button id="cancelImport">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="loginModal">
+        <div class="modal-content">
+            <h2>Sign In</h2>
+            <label class="input-block">
+                Username (optional)
+                <input id="loginUsername" type="text" placeholder="crew" />
+            </label>
+            <label class="input-block">
+                Password
+                <input id="loginPassword" type="password" placeholder="Shared password" />
+            </label>
+            <div class="modal-actions">
+                <button id="loginSubmit">Enter</button>
+            </div>
+            <p class="modal-hint">The password is validated against the backend’s shared secret.</p>
+        </div>
+    </div>
+
+    <template id="sectionTemplate">
+        <article class="editor-section" data-section-id="">
+            <header class="section-header">
+                <input class="section-title" type="text" value="" />
+                <div class="section-actions">
+                    <button class="move-section-up" title="Move Up">?</button>
+                    <button class="move-section-down" title="Move Down">?</button>
+                    <button class="add-item">Add Item</button>
+                    <button class="remove-section">Delete Section</button>
+                </div>
+            </header>
+            <div class="items"></div>
+        </article>
+    </template>
+
+    <template id="itemTemplate">
+        <div class="editor-item" data-item-id="">
+            <input class="item-left" type="text" placeholder="Left" />
+            <input class="item-right" type="text" placeholder="Right" />
+            <button class="remove-item" title="Delete item">?</button>
+        </div>
+    </template>
+
+    <div class="toast" id="toast" hidden></div>
+
+    <script type="module" src="/static/js/app.js"></script>
+</body>
+</html>
+
