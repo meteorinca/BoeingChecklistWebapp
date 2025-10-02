@@ -1,56 +1,26 @@
-# Task Plan: Boeing Checklist Maker MVP
+# Task Plan (Working): Boeing Checklist Webapp
 
-## Product Foundations
-- [ ] Confirm Boeing base checklist assets and typography references
-- [ ] Resolve open questions on fonts, PDF fidelity, and future authentication needs
+_Updated for the reduced MVP scope. Check items off as you land them._
 
-## Backend & Data Layer
-- [x] Set up Flask project structure with application factory and blueprints
-- [x] Implement SQLAlchemy models for checklists, sections, items with ordering metadata
-- [x] Configure SQLite for local dev and plan Cloud SQL connection string for production
-- [ ] Implement Alembic migrations covering initial schema
-- [x] Build checklist CRUD services with validation and ordering logic
-- [x] Create YAML adapter (export/import) with Marshmallow schema enforcement
-- [x] Add Basic Auth middleware reading bcrypt hash from environment secret
-- [x] Implement autosave-friendly endpoints (bulk PUT + PATCH)
-- [x] Create print-ready HTML/PDF endpoint leveraging Jinja template
-- [x] Instrument logging and `/health` endpoint
+## Foundations
+- [ ] Finalize the single checklist layout (section order, column titles, sample data).
+- [ ] Capture printer expectations (paper size, margins, preferred typeface).
 
-## Frontend (HTML/CSS/JS)
-- [x] Scaffold SPA shell served via Firebase Hosting
-- [x] Implement state store with undo/redo stack and autosave debounce
-- [ ] Build section management UI (add, rename, reorder via drag-and-drop)
-- [ ] Build item editor with left/right columns, formatting controls, blanks support
-- [x] Implement Boeing-themed styling (colors, typography, two-column grid)
-- [ ] Add checklist selector list with timestamps and duplication/delete actions
-- [ ] Integrate YAML import/export modals with client-side validation
-- [x] Build print preview route matching Boeing layout, optimized for PDF export
-- [ ] Add onboarding tooltips and inline validation messaging
+## Backend
+- [ ] Simplify the API to the `/api/checklists/current` endpoints only.
+- [ ] Ensure autosave writes updates atomically and returns helpful errors.
+- [ ] Add duplicate checklist helper with timestamped naming.
 
-## Security & Compliance
-- [ ] Enforce HTTPS-only access via Firebase Hosting configuration
-- [ ] Store shared password hash in Google Secret Manager and inject into Cloud Run
-- [ ] Add CSRF protection and request rate limiting for auth-protected endpoints
-- [ ] Validate and sanitize user input and uploaded YAML payloads
+## Frontend
+- [ ] Build the section and item editor with inline add/remove/reorder controls.
+- [ ] Implement debounced save calls and optimistic UI feedback.
+- [ ] Create print preview launch that opens the dedicated route in a new tab.
+- [ ] Provide minimal theming toggle (default + high-contrast).
 
-## Testing & QA
-- [ ] Write pytest suites for services, API endpoints, YAML round-trip, and auth
-- [ ] Add frontend unit tests (vitest/Jest) for store logic and utilities
-- [ ] Create Playwright end-to-end scripts for CRUD, import/export, and print flows
-- [ ] Establish PDF layout regression tests (visual diff or measurements)
-- [ ] Prepare manual QA checklist aligned to MVP user stories
+## QA
+- [ ] Smoke test create/edit/duplicate/print scenarios in Chrome, Edge, and Firefox.
+- [ ] Verify keyboard navigation and focus order through the editor controls.
 
-## Deployment & Ops
-- [ ] Author Dockerfile and Cloud Build config for Flask service
-- [ ] Configure Firebase Hosting rewrites proxying API requests to Cloud Run
-- [ ] Set up GitHub Actions pipeline for lint, tests, and Firebase deploy
-- [ ] Provision Cloud SQL instance (if needed) and nightly backup job
-- [ ] Document deployment/runbook detailing secrets, scaling, and rollback steps
-
-## Documentation & Enablement
-- [ ] Publish YAML schema guide and printing instructions in-app and README
-- [ ] Create user onboarding walkthrough or quickstart video/script
-- [ ] Capture change log metadata display requirements in UX specs
-
-
-
+## Documentation
+- [ ] Update README usage notes and troubleshooting tips after polishing the flows.
+- [ ] Record a short checklist for manual regression before each release.

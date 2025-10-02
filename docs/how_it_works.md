@@ -1,91 +1,60 @@
-# Boeing Checklist Maker — How It Works
+# Boeing Checklist Webapp - How It Works
 
-This document explains the moving pieces of the Boeing Checklist Maker MVP so you can operate, extend, or debug the project with confidence.
+This guide captures the moving parts of the slimmed-down checklist MVP so you can keep the project running and make lightweight improvements.
 
 ## Application Overview
-
-The app is a single-page editor served by Flask. Static assets (HTML, CSS, JS) live under `backend/app/static`, while REST endpoints power data persistence, YAML import/export, and the print-friendly view. The frontend talks to the backend using JSON over the `/api` namespace.
+- The app is a single-page interface served by Flask from `backend/app/static/index.html`.
+- Users edit one checklist at a time; sections and items are stored in SQLite (`checklists.db`).
+- Autosave writes every change straight to the database so the latest draft is always available.
+- A print view reuses the same data to show a clean two-column layout before sending to the printer dialog.
 
 ```
-Browser (JS SPA)
-       ¦
-       +-- GET/POST/PATCH `/api/checklists/**`
-       +-- GET `/api/checklists/<id>/export`
-       +-- POST `/api/checklists/<id>/import`
-       +-- GET `/api/checklists/<id>/print`
+Browser (vanilla JS)
+    |
+    +-- GET /api/checklists/current
+    +-- PUT /api/checklists/current
+    +-- POST /api/checklists/current/duplicate
+    +-- GET /api/checklists/current/print
 
 Flask (backend/app)
-       ¦
-       +-- SQLAlchemy models (SQLite by default)
-       +-- Checklist services (CRUD + YAML)
-       +-- Auth middleware (single shared password)
+    |
+    +-- SQLAlchemy models backed by SQLite
+    +-- Services to map form data <-> database rows
+    +-- Simple auth hook for an optional shared password
 ```
 
-## Backend Details
+## Backend Highlights
+- `backend/app/__init__.py` wires the Flask app, database session, and API blueprint.
+- `backend/app/models.py` defines `Checklist`, `Section`, and `Item` tables with ordering fields.
+- `backend/app/services/checklists.py` exposes helpers to load the active checklist, persist updates, and duplicate an existing list.
+- `backend/app/blueprints/api.py` provides JSON endpoints for the editor and the print view.
 
-- **App factory**: `backend/app/__init__.py` wires configuration, extensions, blueprints, static files, and the template seed loader.
-- **Database**: SQLite (`checklists.db`) via SQLAlchemy. Models live in `backend/app/models.py` and include `Checklist`, `Section`, and `Item` plus ordering metadata.
-- **Auth**: `backend/app/utils/auth.py` enforces single-password Basic Auth using the env var `APP_SHARED_PASSWORD_HASH` (bcrypt hash). Missing hashes log a warning and skip enforcement for local dev.
-- **Services**: `backend/app/services/checklists.py` centralizes CRUD, slug generation, autosave-friendly updates, YAML import/export, and template seeding.
-- **Blueprints**: The API lives in `backend/app/blueprints/api.py`; health checks sit in `backend/app/blueprints/health.py`.
-- **Print view**: `backend/app/templates/print.html` renders a two-column Boeing-style layout and triggers `window.print()`.
+## Frontend Highlights
+- `backend/app/static/js/app.js` handles local state, renders the checklist, and debounces saves.
+- Sections and items are rendered with template strings; buttons call the API through a tiny `apiClient` wrapper.
+- The print preview opens `/api/checklists/current/print` in a new tab so the browser print dialog picks up the layout CSS.
 
-## Frontend Details
+## Data Flow
+1. On load the SPA requests `GET /api/checklists/current` to hydrate the editor.
+2. Edits mutate local state; a short debounce triggers `PUT /api/checklists/current` with the full section/item payload.
+3. The duplicate action calls `POST /api/checklists/current/duplicate` and reloads the editor with the copy.
+4. Print opens the dedicated HTML view which reads from the same database records.
 
-- **Entry point**: `backend/app/static/index.html` renders the SPA shell.
-- **Styles**: `backend/app/static/css/styles.css` defines layout, palettes, and theme skins.
-- **Logic**: `backend/app/static/js/app.js` implements the state store (undo/redo + autosave), API client, UI rendering, YAML import/export, print launch, and theme handling.
-- **Authentication**: A modal prompts for the shared password; credentials are stored client-side as an Authorization header for subsequent requests.
-
-### Data Flow
-
-1. On login the SPA calls `GET /api/checklists` to load metadata.
-2. Selecting a checklist fetches `GET /api/checklists/<id>` and hydrates the store.
-3. Edits mutate the local store; after 800?ms of inactivity a PUT `/api/checklists/<id>` persists the full payload.
-4. YAML export/download uses `GET /api/checklists/<id>/export`; import pipes the YAML straight to `/api/checklists/<id>/import`.
-5. The print button opens `/api/checklists/<id>/print` in a new tab and triggers `window.print()`.
-
-### Theming
-
-Themes are stored with each checklist (`theme` attribute) and applied by toggling a `data-theme` attribute on `<body>`. CSS variables define colors, fonts, and backgrounds for each theme. See `THEMES` inside `app.js` for the available skins.
-
-## Running Locally
-
-```powershell
-# from c:\Users\Mna\Documents\PythonCursBalls
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r backend/requirements.txt
-$env:APP_SHARED_PASSWORD_HASH = '<bcrypt-hash>'
-python backend/wsgi.py
-```
-
-Visit http://127.0.0.1:5000/, sign in with the shared credentials, and start editing.
-
-## Key Environment Variables
-
-- `APP_SHARED_PASSWORD_HASH`: bcrypt hash of the shared password (required for auth in non-dev).
-- `SECRET_KEY`: Flask secret key (defaults to a dev value).
-- `DATABASE_URL`: override SQLite with a different database.
-- `TEMPLATE_SEED_PATH`: path to the default Boeing YAML seed.
+## Configuration
+- `APP_SHARED_PASSWORD_HASH` (optional): bcrypt hash gating access behind one shared password.
+- `DATABASE_URL` (optional): point to a different SQLite path if you do not want the default file.
+- `SECRET_KEY`: Flask session secret, auto-generated for dev if not supplied.
 
 ## Files To Know
-
 | Path | Purpose |
 | --- | --- |
-| `backend/app/__init__.py` | Flask app factory and bootstrap logic |
-| `backend/app/models.py` | SQLAlchemy models |
-| `backend/app/services/checklists.py` | Business rules, YAML adapters |
-| `backend/app/static/index.html` | SPA shell |
-| `backend/app/static/css/styles.css` | Styling (+ theme definitions) |
-| `backend/app/static/js/app.js` | Frontend state/store, UI, API integration |
-| `backend/app/templates/print.html` | Print/PDF layout |
-| `docs/how_it_works.md` | This guide |
+| `backend/app/__init__.py` | App factory + blueprint registration |
+| `backend/app/models.py` | SQLAlchemy models for checklist data |
+| `backend/app/services/checklists.py` | Persistence helpers + duplicate logic |
+| `backend/app/static/js/app.js` | Frontend state + autosave |
+| `backend/app/templates/print.html` | Print-friendly layout |
 
-## Extending The Project
-
-- **More Themes**: Add palette + font variables in CSS (`[data-theme="<name>"]`) and register the theme object inside `app.js`.
-- **New Fields**: Update the SQLAlchemy models, Marshmallow schemas, services, and SPA state handling.
-- **Deployments**: Add Dockerfile, CI, Firebase/Cloud Run configs per the requirements in `docs/PRD.md` and `docs/master_design.md`.
-
-Happy flying! ??
+## Extending The MVP Safely
+- Add more checklist metadata by extending the models and updating the serializer in `services/checklists.py`.
+- Introduce per-device backups by exporting the JSON payload and storing it in IndexedDB.
+- Layer simple sharing later by adding a `checklists` table keyed by user tokens once authentication needs are clearer.

@@ -1,6 +1,25 @@
 # Boeing Checklist Maker MVP
 
-This repository contains a minimal vertical slice of the Boeing Checklist Maker described in the product and design docs. It includes a Flask backend with SQLite persistence, YAML import/export, a print-ready template, and a vanilla JavaScript single-page editor with autosave.
+This repository contains a lightweight Boeing-themed checklist editor built with Flask, SQLite, and vanilla JavaScript. It focuses on quick edits, automatic saves, easy duplication, and a print-friendly view.
+
+## What the Webapp Does
+- Single-page editor for adding, reordering, and removing checklist sections and items.
+- Autosave keeps the latest draft ready when you return to the app.
+- Duplicate action spins up a fresh copy when you want a variation without starting over.
+- Print preview renders the same two-column layout used in the editor for paper or PDF.
+
+## Using the Editor
+1. Open the app and review the default checklist to understand the structure.
+2. Rename or add sections to match the flow you need; keep titles short so they fit in the column header.
+3. Add checklist items row by row, using the left column for the call-out and the right column for the expected response.
+4. Drag items or sections into the order you want, then click Duplicate if you need a branching scenario.
+5. Choose Print to open the print-friendly view, adjust scaling if needed, and save to PDF or send to paper.
+
+**Tips for clean checklists**
+- Group three to seven items per section to keep lists scannable.
+- Start each item with an action verb ("Set", "Verify", "Confirm") for faster readbacks.
+- Reserve the right column for short confirmations or target values.
+- Do a dry run in the print preview before handing the checklist to others.
 
 ## Local development
 
@@ -50,13 +69,10 @@ backend/
 
 ## Capabilities implemented
 
-- Checklist CRUD with SQLite + SQLAlchemy models for checklists, sections, and items.
-- YAML import/export with schema normalization.
-- Theme switcher (Boeing + Sticky Note) with per-checklist persistence.
-- Single-password Basic Auth check backed by bcrypt hashes.
-- Autosave-ready PUT endpoint and PATCH placeholder for future diffing.
-- Print-ready HTML view aligned with Boeing visual cues.
-- SPA editor: state store with undo/redo, section/item management, YAML import/export, and Boeing-themed styling.
-- Health endpoint for deploy readiness checks.
+- Single checklist CRUD backed by SQLite and SQLAlchemy for sections and items.
+- Inline section and item editing with drag-to-reorder interactions.
+- Autosave and duplicate endpoints that keep the latest draft ready.
+- Print-friendly HTML view for quick PDF or paper handouts.
+- Optional shared-password gate plus a `/health` endpoint for deploy checks.
 
 See `docs/Task_working.md` for task-level completion tracking.
