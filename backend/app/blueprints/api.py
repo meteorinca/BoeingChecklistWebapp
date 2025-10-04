@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from flask import Blueprint, Response, current_app, jsonify, render_template, request
+from flask import Blueprint, Response, jsonify, render_template, request
 
 from ..services import checklists as service
 from ..utils.auth import require_basic_auth
@@ -28,7 +28,7 @@ def handle_conflict(exc: service.ChecklistConflictError):
 @api_bp.route("/checklists", methods=["GET"])
 @require_basic_auth
 def list_checklists():
-    checklists = [c.to_dict() for c in service.list_checklists()]
+    checklists = service.list_checklists()
     return _json_response(checklists)
 
 
@@ -37,14 +37,14 @@ def list_checklists():
 def create_checklist():
     payload = request.get_json(force=True, silent=True) or {}
     checklist = service.create_checklist(payload, author_override=_request_user())
-    return _json_response(checklist.to_dict(), status=201)
+    return _json_response(checklist, status=201)
 
 
 @api_bp.route("/checklists/<checklist_id>", methods=["GET"])
 @require_basic_auth
 def retrieve_checklist(checklist_id: str):
     checklist = service.get_checklist(checklist_id)
-    return _json_response(checklist.to_dict())
+    return _json_response(checklist)
 
 
 @api_bp.route("/checklists/<checklist_id>", methods=["PUT"])
@@ -52,7 +52,7 @@ def retrieve_checklist(checklist_id: str):
 def replace_checklist(checklist_id: str):
     payload = request.get_json(force=True, silent=True) or {}
     checklist = service.update_checklist(checklist_id, payload, author_override=_request_user())
-    return _json_response(checklist.to_dict())
+    return _json_response(checklist)
 
 
 @api_bp.route("/checklists/<checklist_id>", methods=["PATCH"])
@@ -60,7 +60,7 @@ def replace_checklist(checklist_id: str):
 def patch_checklist(checklist_id: str):
     payload = request.get_json(force=True, silent=True) or {}
     checklist = service.patch_checklist(checklist_id, payload)
-    return _json_response(checklist.to_dict())
+    return _json_response(checklist)
 
 
 @api_bp.route("/checklists/<checklist_id>", methods=["DELETE"])
@@ -83,7 +83,7 @@ def export_checklist(checklist_id: str):
 def import_checklist(checklist_id: str):
     yaml_text = request.data.decode("utf-8")
     checklist = service.import_checklist_from_yaml(checklist_id, yaml_text)
-    return _json_response(checklist.to_dict())
+    return _json_response(checklist)
 
 
 @api_bp.route("/checklists/import", methods=["POST"])
@@ -91,7 +91,7 @@ def import_checklist(checklist_id: str):
 def import_new_checklist():
     yaml_text = request.data.decode("utf-8")
     checklist = service.import_checklist_from_yaml(None, yaml_text)
-    return _json_response(checklist.to_dict(), status=201)
+    return _json_response(checklist, status=201)
 
 
 @api_bp.route("/checklists/<checklist_id>/print", methods=["GET"])

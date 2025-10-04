@@ -1,6 +1,6 @@
 # Boeing Checklist Maker MVP
 
-This repository contains a lightweight Boeing-themed checklist editor built with Flask, SQLite, and vanilla JavaScript. It focuses on quick edits, automatic saves, easy duplication, and a print-friendly view.
+This repository contains a lightweight Boeing-themed checklist editor backed by Flask, Firestore, and vanilla JavaScript. The editor still focuses on quick edits, automatic saves, easy duplication, and a print-friendly view, but data now lives in Google Cloud Firestore so you can run the stack in Firebase.
 
 ## What the Webapp Does
 - Single-page editor for adding, reordering, and removing checklist sections and items.
@@ -8,71 +8,95 @@ This repository contains a lightweight Boeing-themed checklist editor built with
 - Duplicate action spins up a fresh copy when you want a variation without starting over.
 - Print preview renders the same two-column layout used in the editor for paper or PDF.
 
-## Using the Editor
-1. Open the app and review the default checklist to understand the structure.
-2. Rename or add sections to match the flow you need; keep titles short so they fit in the column header.
-3. Add checklist items row by row, using the left column for the call-out and the right column for the expected response.
-4. Drag items or sections into the order you want, then click Duplicate if you need a branching scenario.
-5. Choose Print to open the print-friendly view, adjust scaling if needed, and save to PDF or send to paper.
+## Local Development
 
-**Tips for clean checklists**
-- Group three to seven items per section to keep lists scannable.
-- Start each item with an action verb ("Set", "Verify", "Confirm") for faster readbacks.
-- Reserve the right column for short confirmations or target values.
-- Do a dry run in the print preview before handing the checklist to others.
-
-## Local development
-
-1. **Install dependencies**
+1. **Create a Python environment & install deps**
 
    ```bash
    python -m venv .venv
-   .venv\Scripts\activate
+   .venv\Scripts\activate  # or source .venv/bin/activate on macOS/Linux
    pip install -r backend/requirements.txt
    ```
 
-2. **Set environment variables**
+2. **Provision Firestore credentials**
+
+   - Create a Firebase project (the examples below assume `checklistapp`).
+   - Generate a service account key with the **Cloud Datastore User** role and download the JSON file.
+   - Point the backend at that key and project ID:
+
+     ```powershell
+     $env:GOOGLE_APPLICATION_CREDENTIALS = 'C:\path\to\service-account.json'
+     $env:FIRESTORE_PROJECT = 'checklistapp'
+     ```
+
+     > Tip: For offline hacking you can run `gcloud beta emulators firestore start --host-port=localhost:8081` and set `FIRESTORE_EMULATOR_HOST=localhost:8081` instead of using a service account.
+
+3. **Set optional auth and Flask variables**
 
    ```powershell
-   # Generate a bcrypt hash for your shared password (run once)
    python -c "import bcrypt; print(bcrypt.hashpw(b'secret-password', bcrypt.gensalt()).decode())"
-
    $env:APP_SHARED_PASSWORD_HASH = '<paste-generated-hash>'
    $env:FLASK_APP = 'backend.wsgi:app'
    ```
 
-   If `APP_SHARED_PASSWORD_HASH` is not provided the API is left open (handy for local exploration).
+   If `APP_SHARED_PASSWORD_HASH` is not provided the API remains open (handy for local exploration).
 
-3. **Run the development server**
+4. **Run the development server**
 
    ```powershell
    flask run
    ```
 
-4. **Sign in via the frontend**
+5. **Sign in via the frontend**
 
-   Visit http://127.0.0.1:5000. Enter the shared password when prompted (username optional) to start editing. Autosave will trigger 800?ms after the last change.
+   Visit http://127.0.0.1:5000. Enter the shared password when prompted (username optional) to start editing. Autosave will trigger ~800 ms after the last change.
 
-## Project structure
+## Firebase Deployment Overview
+
+The repo ships with Firebase Hosting + Cloud Run configuration. After you customise the project ID and Cloud Run service name you can deploy with:
+
+```bash
+# 1. Authenticate and set project
+firebase login
+firebase use checklistapp
+
+# 2. Build & deploy the Cloud Run service (uses Dockerfile at repo root)
+gcloud builds submit --tag gcr.io/checklistapp/checklist-backend .
+gcloud run deploy checklist-backend \
+  --image gcr.io/checklistapp/checklist-backend \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated
+
+# 3. Wire Hosting to the Cloud Run instance and upload static assets
+firebase deploy --only hosting,firestore:indexes
+```
+
+See `docs/how_it_works.md` and `docs/deployment.md` for deeper architecture and rollout notes.
+
+## Project Structure
 
 ```
 backend/
   app/
     blueprints/    # API and health endpoints
     data/          # Default Boeing checklist seed (YAML)
-    services/      # Business logic for CRUD/YAML
+    services/      # Firestore persistence, import/export helpers
     static/        # SPA assets (HTML, CSS, JS)
     templates/     # Print-ready Jinja template
   requirements.txt
   wsgi.py
+Dockerfile         # Container for Cloud Run
+firebase.json      # Firebase Hosting rewrites -> Cloud Run
+firestore.rules    # Locked-down Firestore access (API only)
 ```
 
-## Capabilities implemented
+## Capabilities Implemented
 
-- Single checklist CRUD backed by SQLite and SQLAlchemy for sections and items.
+- Single checklist CRUD backed by Firestore documents.
 - Inline section and item editing with drag-to-reorder interactions.
 - Autosave and duplicate endpoints that keep the latest draft ready.
 - Print-friendly HTML view for quick PDF or paper handouts.
 - Optional shared-password gate plus a `/health` endpoint for deploy checks.
 
-See `docs/Task_working.md` for task-level completion tracking.
+See `docs/Task_working.md` for current backlog status.

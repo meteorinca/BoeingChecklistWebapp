@@ -1,52 +1,83 @@
-# Master Design: Boeing Checklist Webapp
+# Main Design: Boeing Checklist Webapp
 
 ## Architecture Snapshot
-The MVP runs as a single Flask service that serves both the editor assets and a tiny JSON API. SQLite stores one active checklist plus its sections and items. The browser renders the editor with vanilla JavaScript and keeps its state synced with the backend through straightforward REST calls.
+The MVP runs as a Flask API packaged for Cloud Run. Firebase Hosting serves the static editor while rewrites proxy `/api/*` traffic into the Cloud Run service. Firestore stores checklist documents with embedded sections/items so no extra tables are required.
 
 ```
-+-----------+        +-------------+        +-------------+
-|  Browser  | <----> |   Flask     | <----> |   SQLite    |
-|  (SPA)    |        |  API + SPA  |        |  checklists |
-+-----------+        +-------------+        +-------------+
++-----------+        +-----------------+        +----------------+
+|  Browser  | <----> |  Firebase Host  | <----> |  Cloud Run     |
+|  (SPA)    |        |  + Rewrites     |        |  Flask + GCF   |
++-----------+        +-----------------+        +----------------+
+                                                     |
+                                                     v
+                                               Firestore (documents)
 ```
 
 ## Technology Choices
 - Python 3 + Flask for routing, templating, and JSON responses.
-- SQLAlchemy ORM on top of SQLite for simple persistence.
+- `google-cloud-firestore` SDK for persistence (simple document reads/writes, server-side slug checking).
 - Vanilla JS modules plus lightweight DOM helpers for the editor.
-- Bootstrap-style utility classes from a small custom CSS file.
+- Firebase Hosting + Cloud Run for managed HTTPS hosting without owning infrastructure.
 
 ## Data Model
-- `checklists`: id (uuid), title, created_at, updated_at.
-- `sections`: id (uuid), checklist_id, title, position.
-- `items`: id (uuid), section_id, left_text, right_text, position.
+Each checklist document stored in Firestore looks like:
 
-No migrations are required for the MVP; the database is created on first run from SQLAlchemy metadata.
+```
+{
+  id: uuid,
+  slug: string,
+  title: string,
+  author: string | null,
+  revision: string | null,
+  theme: string,
+  sections: [
+    {
+      id: uuid,
+      title: string,
+      position: number,
+      items: [
+        {
+          id: uuid,
+          left_text: string,
+          right_text: string | null,
+          format: object,
+          position: number
+        }
+      ]
+    }
+  ],
+  metadata: { title, author, revision, theme, created_at?, updated_at? },
+  created_at: timestamp,
+  updated_at: timestamp
+}
+```
+
+No SQL migrations are required; Firestore documents evolve schemalessly by the service layer.
 
 ## API Surface
-- `GET /api/checklists/current`: return the stored checklist with sections/items.
-- `PUT /api/checklists/current`: replace checklist, section, and item data in a single payload.
-- `POST /api/checklists/current/duplicate`: clone the current checklist with a new id and timestamp.
-- `GET /api/checklists/current/print`: render HTML that mirrors the print layout.
-
-Responses share the same JSON shape so the frontend can reuse parsing logic.
+- `GET /api/checklists`: list checklist summaries ordered by `updated_at`.
+- `POST /api/checklists`: create a new checklist with default sections/items.
+- `GET /api/checklists/{id}`: return a full checklist for editing.
+- `PUT /api/checklists/{id}`: replace the checklist payload in Firestore.
+- `POST /api/checklists/{id}/import`: import YAML/Markdown into the existing checklist.
+- `GET /api/checklists/{id}/export`: return YAML for backup/export.
+- `GET /api/checklists/{id}/print`: render HTML for printing.
 
 ## Frontend Design
 - `app.js` keeps checklist state in memory and renders sections/items with template literals.
 - Event listeners on buttons and inputs push updates through a debounced save routine.
-- Drag-and-drop for sections/items uses the browser `dragstart`/`drop` events and updates `position` before saving.
+- Drag-and-drop for sections/items updates `position` before the next PUT.
 - Print preview opens a new window pointed at the print route and immediately calls `window.print()`.
 
 ## Styling
 - CSS variables define colors and spacing for readability when both editing and printing.
-- A dedicated print stylesheet hides controls and ensures two columns fit comfortably on letter or A4 paper.
-- Optional dark theme swaps background/text variables without altering layout rules.
+- Theme dropdown drives body `data-theme` attributes; additional themes can be plugged in without changing markup.
 
 ## Error Handling
-- Backend returns `{ "error": { "message": str } }` envelopes for validation issues.
+- Backend returns `{ "error": { "message": str } }` envelopes for validation issues (e.g., missing sections, slug conflicts).
 - Frontend displays inline banners and keeps the previous state in memory so a failed save can be retried.
 
 ## Future-Friendly Hooks
-- Introduce additional checklist fields by extending the shared serializer in one place.
-- Add cloud sync later by swapping SQLite with a remote database through SQLAlchemy connection strings.
-- Layer richer permissions behind the existing auth hook once user requirements expand.
+- Introduce per-user storage by namespacing Firestore documents under user IDs once authentication lands.
+- Add search or tagging by creating composite indexes on Firestore fields (e.g., `slug`, `updated_at`).
+- Swap Firestore for another data store by reimplementing `services/checklists.py` while leaving API and frontend untouched.

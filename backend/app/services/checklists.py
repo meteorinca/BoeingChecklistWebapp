@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 import re
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
 
 import yaml
-from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
+from google.cloud import firestore
 
-from ..extensions import db
-from ..models import Checklist, Item, Section
+from ..extensions import get_firestore
 from ..schemas import ChecklistSchema
 
 checklist_schema = ChecklistSchema()
@@ -33,143 +33,280 @@ def generate_unique_slug(base_title: str, checklist_id: str | None = None) -> st
     slug = base_slug
     counter = 2
     while True:
-        query = select(Checklist).where(Checklist.slug == slug)
-        if checklist_id:
-            query = query.where(Checklist.id != checklist_id)
-        exists = db.session.execute(query).scalar_one_or_none()
-        if not exists:
+        existing = _find_by_slug(slug)
+        if not existing:
+            return slug
+        if existing.id == checklist_id:
             return slug
         slug = f"{base_slug}-{counter}"
         counter += 1
 
 
-def list_checklists() -> list[Checklist]:
-    statement = select(Checklist).order_by(Checklist.updated_at.desc())
-    return list(db.session.execute(statement).scalars().all())
+def list_checklists() -> list[dict]:
+    query = _collection().order_by("updated_at", direction=firestore.Query.DESCENDING)
+    return [_serialize_snapshot(snapshot) for snapshot in query.stream()]
 
 
-def get_checklist(checklist_id: str) -> Checklist:
-    checklist = db.session.get(Checklist, checklist_id)
-    if not checklist:
+def get_checklist(checklist_id: str) -> dict:
+    snapshot = _document(checklist_id).get()
+    if not snapshot.exists:
         raise ChecklistNotFoundError(checklist_id)
-    return checklist
+    return _serialize_snapshot(snapshot)
 
 
-def create_checklist(payload: dict, author_override: str | None = None) -> Checklist:
+def create_checklist(payload: dict, author_override: str | None = None) -> dict:
     data = checklist_schema.load(payload)
-    checklist = Checklist()
-    _apply_checklist_data(checklist, data, author_override)
-    db.session.add(checklist)
-    try:
-        db.session.commit()
-    except IntegrityError as exc:
-        db.session.rollback()
-        raise ChecklistConflictError(str(exc)) from exc
-    return checklist
+    checklist_id = data.get("id") or _create_id()
+    ref = _document(checklist_id)
+    if ref.get().exists:
+        raise ChecklistConflictError(f"Checklist {checklist_id} already exists")
+    record = _build_record(data, checklist_id, author_override, existing=None)
+    ref.set(record)
+    return _serialize_dict(checklist_id, record)
 
 
-def update_checklist(checklist_id: str, payload: dict, author_override: str | None = None) -> Checklist:
-    checklist = get_checklist(checklist_id)
+def update_checklist(checklist_id: str, payload: dict, author_override: str | None = None) -> dict:
+    ref = _document(checklist_id)
+    snapshot = ref.get()
+    if not snapshot.exists:
+        raise ChecklistNotFoundError(checklist_id)
+    existing = snapshot.to_dict() or {}
+    existing["id"] = checklist_id
     data = checklist_schema.load(payload)
-    _apply_checklist_data(checklist, data, author_override)
-    try:
-        db.session.commit()
-    except IntegrityError as exc:
-        db.session.rollback()
-        raise ChecklistConflictError(str(exc)) from exc
-    return checklist
+    record = _build_record(data, checklist_id, author_override, existing=existing)
+    ref.set(record)
+    return _serialize_dict(checklist_id, record)
 
 
-def patch_checklist(checklist_id: str, payload: dict) -> Checklist:
-    checklist = get_checklist(checklist_id)
-    merged = checklist_schema.dump(checklist)
-    merged.update(payload)
+def patch_checklist(checklist_id: str, payload: dict) -> dict:
+    current = get_checklist(checklist_id)
+    merged = {**current, **payload}
+    if "sections" not in payload:
+        merged["sections"] = current.get("sections", [])
     return update_checklist(checklist_id, merged)
 
 
 def delete_checklist(checklist_id: str) -> None:
-    checklist = get_checklist(checklist_id)
-    db.session.delete(checklist)
-    db.session.commit()
+    ref = _document(checklist_id)
+    snapshot = ref.get()
+    if not snapshot.exists:
+        raise ChecklistNotFoundError(checklist_id)
+    ref.delete()
 
 
-def import_checklist_from_yaml(checklist_id: str | None, yaml_text: str) -> Checklist:
+def import_checklist_from_yaml(checklist_id: str | None, yaml_text: str) -> dict:
     payload = _parse_import_payload(yaml_text)
     if checklist_id:
         return update_checklist(checklist_id, payload)
     return create_checklist(payload)
 
 
-def export_checklist_to_yaml(checklist: Checklist) -> str:
-    payload = _normalize_yaml_payload(checklist_schema.dump(checklist))
+def export_checklist_to_yaml(checklist: dict) -> str:
+    payload = _normalize_yaml_payload(checklist)
     return yaml.safe_dump(payload, sort_keys=False, allow_unicode=True)
 
 
-def ensure_seed_data(template_path: Path) -> Checklist | None:
+def ensure_seed_data(template_path: Path) -> dict | None:
     if not template_path.exists():
         return None
-    statement = select(Checklist).limit(1)
-    existing = db.session.execute(statement).scalar_one_or_none()
-    if existing:
+    if next(_collection().limit(1).stream(), None):
         return None
     with template_path.open("r", encoding="utf-8") as handle:
         yaml_text = handle.read()
-    checklist = import_checklist_from_yaml(None, yaml_text)
-    return checklist
+    return import_checklist_from_yaml(None, yaml_text)
 
 
-def _apply_checklist_data(checklist: Checklist, data: dict, author_override: str | None) -> None:
-    checklist.title = data["title"]
-    checklist.author = author_override or data.get("author")
-    checklist.revision = data.get("revision")
-    checklist.slug = generate_unique_slug(checklist.title, getattr(checklist, "id", None))
-    checklist.theme = data.get("theme") or checklist.theme or "boeing"
+def _collection() -> firestore.CollectionReference:
+    return get_firestore().collection("checklists")
 
-    metadata = data.get("metadata") or {}
+
+def _document(checklist_id: str) -> firestore.DocumentReference:
+    return _collection().document(checklist_id)
+
+
+def _find_by_slug(slug: str) -> firestore.DocumentSnapshot | None:
+    query = _collection().where("slug", "==", slug).limit(1).stream()
+    for snapshot in query:
+        return snapshot
+    return None
+
+
+def _create_id() -> str:
+    return str(uuid.uuid4())
+
+
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _build_record(
+    data: dict,
+    checklist_id: str,
+    author_override: str | None,
+    existing: dict | None,
+) -> dict:
+    author = author_override or data.get("author")
+    theme = data.get("theme") or (existing.get("theme") if existing else "boeing")
+    slug = generate_unique_slug(data["title"], checklist_id=checklist_id)
+    sections = _normalize_sections(data.get("sections", []))
+    metadata = _normalize_metadata(data.get("metadata") or {}, data["title"], author, theme)
+
+    now = _now()
+    created_at_source = data.get("created_at")
+    if created_at_source is None and existing:
+        created_at_source = existing.get("created_at")
+    created_at = _to_utc(created_at_source) or now
+
+    updated_at = _to_utc(data.get("updated_at")) or now
+
+    if "created_at" in metadata:
+        created_at = _to_utc(metadata["created_at"]) or created_at
+    if "updated_at" in metadata:
+        updated_at = _to_utc(metadata["updated_at"]) or updated_at
+
+    record = {
+        "id": checklist_id,
+        "title": data["title"],
+        "slug": slug,
+        "author": author,
+        "revision": data.get("revision"),
+        "theme": theme,
+        "sections": sections,
+        "metadata": metadata,
+        "created_at": created_at,
+        "updated_at": updated_at,
+    }
+    return record
+
+
+def _normalize_sections(sections_payload: Iterable[dict]) -> list[dict]:
+    normalized: list[dict] = []
+    for index, section in enumerate(sections_payload, start=1):
+        normalized.append(
+            {
+                "id": section.get("id") or _create_id(),
+                "title": section["title"],
+                "position": section.get("position", index),
+                "items": _normalize_items(section.get("items", [])),
+            }
+        )
+    return normalized
+
+
+def _normalize_items(items_payload: Iterable[dict]) -> list[dict]:
+    normalized: list[dict] = []
+    for index, item in enumerate(items_payload, start=1):
+        normalized.append(
+            {
+                "id": item.get("id") or _create_id(),
+                "left_text": item.get("left_text") or item.get("left") or "",
+                "right_text": item.get("right_text") or item.get("right"),
+                "format": item.get("format") or {},
+                "position": item.get("position", index),
+            }
+        )
+    return normalized
+
+
+def _normalize_metadata(metadata: dict, title: str, author: str | None, theme: str) -> dict:
+    normalized = {
+        "title": metadata.get("title") or title,
+        "author": metadata.get("author") or author,
+        "revision": metadata.get("revision"),
+        "theme": metadata.get("theme") or theme,
+    }
     if metadata.get("created_at"):
-        checklist.created_at = metadata["created_at"]
+        normalized["created_at"] = _to_iso(metadata["created_at"])
     if metadata.get("updated_at"):
-        checklist.updated_at = metadata["updated_at"]
-
-    _sync_sections(checklist, data.get("sections", []))
-
-
-def _sync_sections(checklist: Checklist, sections_payload: Iterable[dict]) -> None:
-    existing_sections = {section.id: section for section in checklist.sections}
-    new_sections: list[Section] = []
-    for idx, section_data in enumerate(sections_payload, start=1):
-        section_id = section_data.get("id")
-        section = existing_sections.get(section_id) if section_id else None
-        if not section:
-            section = Section()
-        section.title = section_data["title"]
-        section.position = section_data.get("position", idx)
-        _sync_items(section, section_data.get("items", []))
-        new_sections.append(section)
-
-    checklist.sections[:] = new_sections
+        normalized["updated_at"] = _to_iso(metadata["updated_at"])
+    return {key: value for key, value in normalized.items() if value is not None}
 
 
-def _sync_items(section: Section, items_payload: Iterable[dict]) -> None:
-    existing_items = {item.id: item for item in section.items}
-    new_items: list[Item] = []
-    for idx, item_data in enumerate(items_payload, start=1):
-        item_id = item_data.get("id")
-        item = existing_items.get(item_id) if item_id else None
-        if not item:
-            item = Item()
-        item.left_text = item_data.get("left_text") or item_data.get("left") or ""
-        item.right_text = item_data.get("right_text") or item_data.get("right")
-        item.format_flags = item_data.get("format", {}) or {}
-        item.position = item_data.get("position", idx)
-        new_items.append(item)
-    section.items[:] = new_items
+def _serialize_snapshot(snapshot: firestore.DocumentSnapshot) -> dict:
+    return _serialize_dict(snapshot.id, snapshot.to_dict() or {})
+
+
+def _serialize_dict(checklist_id: str, record: dict) -> dict:
+    data = {
+        "id": checklist_id,
+        "title": record.get("title"),
+        "slug": record.get("slug"),
+        "author": record.get("author"),
+        "revision": record.get("revision"),
+        "theme": record.get("theme"),
+        "created_at": _to_iso(record.get("created_at")),
+        "updated_at": _to_iso(record.get("updated_at")),
+        "sections": [],
+        "metadata": {},
+    }
+    for section in record.get("sections", []):
+        data["sections"].append(
+            {
+                "id": section.get("id"),
+                "title": section.get("title"),
+                "position": section.get("position"),
+                "items": [
+                    {
+                        "id": item.get("id"),
+                        "left_text": item.get("left_text"),
+                        "right_text": item.get("right_text"),
+                        "format": item.get("format") or {},
+                        "position": item.get("position"),
+                    }
+                    for item in section.get("items", [])
+                ],
+            }
+        )
+    metadata = record.get("metadata") or {}
+    serialized_metadata: dict[str, object] = {}
+    for key, value in metadata.items():
+        if key in {"created_at", "updated_at"}:
+            serialized_metadata[key] = _to_iso(value)
+        else:
+            serialized_metadata[key] = value
+    data["metadata"] = serialized_metadata
+    return data
+
+
+def _to_iso(value):
+    if value is None:
+        return None
+    if isinstance(value, str):
+        try:
+            value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return value
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        else:
+            value = value.astimezone(timezone.utc)
+        iso_value = value.isoformat(timespec="seconds")
+        if iso_value.endswith("+00:00"):
+            iso_value = iso_value[:-6] + "Z"
+        return iso_value
+    return value
+
+
+def _to_utc(value):
+    if value is None:
+        return None
+    if isinstance(value, str):
+        try:
+            value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+    return None
 
 
 def _parse_import_payload(raw_text: str) -> dict:
     if not raw_text or not raw_text.strip():
         raise ValueError("Checklist import is empty")
-    sanitized = raw_text.lstrip("\ufeff")
+    sanitized = raw_text.lstrip("﻿")
     yaml_error: Exception | None = None
     try:
         parsed_yaml = yaml.safe_load(sanitized)
@@ -257,7 +394,7 @@ def _parse_markdown_checklist(markdown_text: str) -> dict:
             current_item = item
             continue
 
-        if current_item and original_line.startswith((" ", "\t")):
+        if current_item and original_line.startswith((" ", "	")):
             addition = _strip_markdown_formatting(stripped)
             if addition:
                 current_item["left_text"] = f"{current_item['left_text']} {addition}".strip()
@@ -309,6 +446,8 @@ def _parse_markdown_checklist(markdown_text: str) -> dict:
         "metadata": {"title": title},
         "theme": "boeing",
     }
+
+
 
 
 def _strip_markdown_formatting(value: str | None) -> str:

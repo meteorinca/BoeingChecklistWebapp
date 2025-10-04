@@ -7,14 +7,17 @@ DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 
 class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
-    SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL") or "sqlite:///" + os.path.join(BASE_DIR, "checklists.db")
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    FIRESTORE_PROJECT = (
+        os.getenv("FIRESTORE_PROJECT")
+        or os.getenv("FIREBASE_PROJECT_ID")
+        or os.getenv("GCLOUD_PROJECT")
+        or os.getenv("GOOGLE_CLOUD_PROJECT")
+    )
     JSON_SORT_KEYS = False
     JSONIFY_PRETTYPRINT_REGULAR = False
-    # Debounce window to inform frontend autosave timing if needed
     AUTOSAVE_DEBOUNCE_MS = int(os.getenv("AUTOSAVE_DEBOUNCE_MS", "800"))
     BASIC_AUTH_REALM = "Boeing Checklist Maker"
-    SESSION_COOKIE_SECURE = False  # Overridden in production config
+    SESSION_COOKIE_SECURE = False
     PERMANENT_SESSION_LIFETIME = timedelta(hours=8)
     TEMPLATE_SEED_PATH = os.getenv("TEMPLATE_SEED_PATH") or os.path.join(DATA_DIR, "boeing_template.yaml")
     ENABLE_DEFAULT_SEED = os.getenv("ENABLE_DEFAULT_SEED", "1") == "1"
@@ -26,7 +29,6 @@ class ProductionConfig(Config):
 
 
 class TestingConfig(Config):
-    SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
     TESTING = True
 
 

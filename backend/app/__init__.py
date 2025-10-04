@@ -5,12 +5,11 @@ import os
 from pathlib import Path
 
 from flask import Flask, Response, send_from_directory
-from sqlalchemy import inspect, text
 
 from .blueprints.api import api_bp
 from .blueprints.health import health_bp
 from .config import get_config
-from .extensions import db, ma
+from .extensions import init_firestore, ma
 from .services.checklists import ensure_seed_data
 
 
@@ -25,8 +24,7 @@ def create_app(config_name: str | None = None) -> Flask:
     register_routes(app)
 
     with app.app_context():
-        db.create_all()
-        _ensure_database_shape()
+        init_firestore(app)
         template_path = Path(app.config["TEMPLATE_SEED_PATH"]) if app.config.get("TEMPLATE_SEED_PATH") else None
         if template_path and app.config.get("ENABLE_DEFAULT_SEED", False):
             ensure_seed_data(template_path)
@@ -47,8 +45,8 @@ def configure_logging(app: Flask) -> None:
 
 
 def register_extensions(app: Flask) -> None:
-    db.init_app(app)
     ma.init_app(app)
+    init_firestore(app)
 
 
 def register_blueprints(app: Flask) -> None:
@@ -64,12 +62,3 @@ def register_routes(app: Flask) -> None:
     @app.route("/assets/<path:filename>")
     def serve_static_asset(filename: str) -> Response:
         return send_from_directory(app.static_folder, filename)
-
-
-def _ensure_database_shape() -> None:
-    inspector = inspect(db.engine)
-    columns = {col['name'] for col in inspector.get_columns('checklists')}
-    if 'theme' not in columns:
-        db.session.execute(text("ALTER TABLE checklists ADD COLUMN theme VARCHAR(50) DEFAULT 'boeing'"))
-        db.session.execute(text("UPDATE checklists SET theme = COALESCE(theme, 'boeing')"))
-        db.session.commit()
