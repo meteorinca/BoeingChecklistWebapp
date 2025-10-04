@@ -146,7 +146,7 @@ def _build_record(
     existing: dict | None,
 ) -> dict:
     author = author_override or data.get("author")
-    theme = data.get("theme") or (existing.get("theme") if existing else "boeing")
+    theme = data.get("theme") or (existing.get("theme") if existing else "moeing")
     slug = generate_unique_slug(data["title"], checklist_id=checklist_id)
     sections = _normalize_sections(data.get("sections", []))
     metadata = _normalize_metadata(data.get("metadata") or {}, data["title"], author, theme)
@@ -444,7 +444,7 @@ def _parse_markdown_checklist(markdown_text: str) -> dict:
         "title": title,
         "sections": sections,
         "metadata": {"title": title},
-        "theme": "boeing",
+        "theme": "moeing",
     }
 
 
@@ -471,7 +471,7 @@ def _strip_markdown_formatting(value: str | None) -> str:
 def _normalize_yaml_payload(parsed: dict) -> dict:
     metadata = parsed.get("metadata", {})
     sections = parsed.get("sections", [])
-    theme_value = parsed.get("theme") or metadata.get("theme") or "boeing"
+    theme_value = parsed.get("theme") or metadata.get("theme") or "moeing"
     normalized_sections = []
     for position, section in enumerate(sections, start=1):
         normalized_items = []

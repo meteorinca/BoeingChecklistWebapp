@@ -1,4 +1,4 @@
-# Boeing Checklist Webapp - How It Works
+# Moeing Checklist Webapp - How It Works
 
 This guide captures the moving parts of the Firestore-backed checklist MVP so you can keep the project running and make lightweight improvements.
 

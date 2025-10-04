@@ -1,4 +1,4 @@
-# Main Design: Boeing Checklist Webapp
+# Main Design: Moeing Checklist Webapp
 
 ## Architecture Snapshot
 The MVP runs as a Flask API packaged for Cloud Run. Firebase Hosting serves the static editor while rewrites proxy `/api/*` traffic into the Cloud Run service. Firestore stores checklist documents with embedded sections/items so no extra tables are required.

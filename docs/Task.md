@@ -1,4 +1,4 @@
-# Task Plan: Boeing Checklist Webapp
+# Task Plan: Moeing Checklist Webapp
 
 ## Foundations
 - [ ] Finalize the single checklist layout (section order, column titles, sample data).

@@ -1,6 +1,6 @@
-# Boeing Checklist Maker MVP
+# Moeing Checklist Maker MVP
 
-This repository contains a lightweight Boeing-themed checklist editor backed by Flask, Firestore, and vanilla JavaScript. The editor still focuses on quick edits, automatic saves, easy duplication, and a print-friendly view, but data now lives in Google Cloud Firestore so you can run the stack in Firebase.
+This repository contains a lightweight Moeing-themed checklist editor backed by Flask, Firestore, and vanilla JavaScript. The editor still focuses on quick edits, automatic saves, easy duplication, and a print-friendly view, but data now lives in Google Cloud Firestore so you can run the stack in Firebase.
 
 ## What the Webapp Does
 - Single-page editor for adding, reordering, and removing checklist sections and items.
@@ -80,7 +80,7 @@ See `docs/how_it_works.md` and `docs/deployment.md` for deeper architecture and 
 backend/
   app/
     blueprints/    # API and health endpoints
-    data/          # Default Boeing checklist seed (YAML)
+    data/          # Default Moeing checklist seed (YAML)
     services/      # Firestore persistence, import/export helpers
     static/        # SPA assets (HTML, CSS, JS)
     templates/     # Print-ready Jinja template

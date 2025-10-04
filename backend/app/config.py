@@ -16,10 +16,10 @@ class Config:
     JSON_SORT_KEYS = False
     JSONIFY_PRETTYPRINT_REGULAR = False
     AUTOSAVE_DEBOUNCE_MS = int(os.getenv("AUTOSAVE_DEBOUNCE_MS", "800"))
-    BASIC_AUTH_REALM = "Boeing Checklist Maker"
+    BASIC_AUTH_REALM = "Moeing Checklist Maker"
     SESSION_COOKIE_SECURE = False
     PERMANENT_SESSION_LIFETIME = timedelta(hours=8)
-    TEMPLATE_SEED_PATH = os.getenv("TEMPLATE_SEED_PATH") or os.path.join(DATA_DIR, "boeing_template.yaml")
+    TEMPLATE_SEED_PATH = os.getenv("TEMPLATE_SEED_PATH") or os.path.join(DATA_DIR, "moeing_template.yaml")
     ENABLE_DEFAULT_SEED = os.getenv("ENABLE_DEFAULT_SEED", "1") == "1"
 
 

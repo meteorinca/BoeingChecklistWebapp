@@ -1,7 +1,7 @@
-# PRD: Boeing Checklist Webapp
+# PRD: Moeing Checklist Webapp
 
 ## Overview
-The Boeing Checklist Webapp is a lightweight browser tool for drafting, organizing, and printing aviation-style checklists. The refreshed MVP stores data in Firestore so the same checklist can be edited from any device with the shared password.
+The Moeing Checklist Webapp is a lightweight browser tool for drafting, organizing, and printing aviation-style checklists. The refreshed MVP stores data in Firestore so the same checklist can be edited from any device with the shared password.
 
 ## Target Users
 - Flight sim hobbyists who want custom flows for their home cockpit.

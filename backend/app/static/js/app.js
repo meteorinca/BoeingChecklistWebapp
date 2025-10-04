@@ -1,7 +1,7 @@
 const AUTOSAVE_MS = 800;
-const THEME_DEFAULT = "boeing";
+const THEME_DEFAULT = "moeing";
 const THEMES = {
-    boeing: { label: "Boeing Classic" },
+    moeing: { label: "Moeing Classic" },
     sticky_note: { label: "Sticky Note" },
 };
 

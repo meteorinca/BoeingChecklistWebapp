@@ -1,4 +1,4 @@
-# Deployment Guide: Boeing Checklist Webapp
+# Deployment Guide: Moeing Checklist Webapp
 
 This guide summarises the steps required to ship the checklist editor via Firebase Hosting (static assets) and Cloud Run (Flask API).
 
